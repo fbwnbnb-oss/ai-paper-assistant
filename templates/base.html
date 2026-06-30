@@ -94,6 +94,17 @@
                 <span class="qtag" data-kw="reinforcement learning">RL</span>
                 <span class="qtag" data-kw="vision language model">VLM</span>
             </div>
+            <div class="ai-recommend-section" id="ai-recommend-section" style="display:none">
+                <div class="field-label" style="margin-top:14px;display:flex;align-items:center;gap:6px">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                    AI 推荐关键词
+                </div>
+                <div class="quick-tags" id="ai-tags">
+                    <span class="ai-tags-loading"><span class="spinner-sm"></span>分析学习记录…</span>
+                </div>
+            </div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-ghost" id="fetch-cancel">取消</button>
@@ -235,7 +246,7 @@ const fetchDef     = document.getElementById('fetch-default-label');
 const fetchLoad    = document.getElementById('fetch-loading-label');
 
 bindClose('fetch-overlay', 'fetch-close', 'fetch-cancel');
-fetchBtn.addEventListener('click', () => { openModal('fetch-overlay'); kwInput.value = ''; kwInput.focus(); });
+fetchBtn.addEventListener('click', () => { openModal('fetch-overlay'); kwInput.value = ''; kwInput.focus(); loadAIRecommendations(); });
 kwInput.addEventListener('keydown', e => { if (e.key === 'Enter') fetchConfirm.click(); });
 
 // Quick tags
@@ -413,6 +424,48 @@ document.addEventListener('mouseleave', (e) => {
 document.querySelectorAll('.paper-card').forEach(card => {
     card.addEventListener('mouseleave', () => { card.style.transform = ''; });
 });
+
+/* ─── AI keyword recommendations ─── */
+let aiRecommendLoaded = false;
+async function loadAIRecommendations() {
+    const section = document.getElementById('ai-recommend-section');
+    const container = document.getElementById('ai-tags');
+    if (aiRecommendLoaded) { section.style.display = 'block'; return; }
+
+    section.style.display = 'block';
+    container.innerHTML = '<span class="ai-tags-loading"><span class="spinner-sm"></span>分析学习记录…</span>';
+
+    try {
+        const resp = await fetch('/api/study/recommend-keywords');
+        const data = await resp.json();
+        if (data.success && data.keywords && data.keywords.length > 0) {
+            container.innerHTML = '';
+            data.keywords.forEach(kw => {
+                const tag = document.createElement('span');
+                tag.className = 'qtag qtag-ai';
+                tag.dataset.kw = kw;
+                tag.textContent = kw;
+                tag.addEventListener('click', () => {
+                    const parts = kwInput.value.split(',').map(s => s.trim()).filter(Boolean);
+                    if (parts.includes(kw)) {
+                        kwInput.value = parts.filter(p => p !== kw).join(', ');
+                        tag.classList.remove('selected');
+                    } else {
+                        kwInput.value = parts.concat(kw).join(', ');
+                        tag.classList.add('selected');
+                    }
+                    kwInput.focus();
+                });
+                container.appendChild(tag);
+            });
+            aiRecommendLoaded = true;
+        } else {
+            section.style.display = 'none';
+        }
+    } catch {
+        section.style.display = 'none';
+    }
+}
 </script>
 
 {% block scripts %}{% endblock %}

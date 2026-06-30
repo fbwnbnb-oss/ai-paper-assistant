@@ -39,6 +39,17 @@ def init_db():
                 FOREIGN KEY (arxiv_id) REFERENCES papers(arxiv_id)
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS study_records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                arxiv_id TEXT UNIQUE NOT NULL,
+                full_text TEXT,
+                translated_text TEXT,
+                summary TEXT,
+                studied_at TEXT NOT NULL,
+                FOREIGN KEY (arxiv_id) REFERENCES papers(arxiv_id)
+            )
+        """)
 
 def save_paper(paper: dict, fetched_date: str):
     with get_db() as conn:
@@ -119,3 +130,52 @@ def paper_exists(arxiv_id: str):
             "SELECT 1 FROM papers WHERE arxiv_id = ?",
             (arxiv_id,)
         ).fetchone() is not None
+
+
+def init_study_table():
+    with get_db() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS study_records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                arxiv_id TEXT UNIQUE NOT NULL,
+                full_text TEXT,
+                translated_text TEXT,
+                summary TEXT,
+                studied_at TEXT NOT NULL,
+                FOREIGN KEY (arxiv_id) REFERENCES papers(arxiv_id)
+            )
+        """)
+
+
+def get_study_record(arxiv_id: str):
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM study_records WHERE arxiv_id = ?",
+            (arxiv_id,)
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def save_study_record(arxiv_id: str, full_text: str, translated_text: str, summary: str):
+    with get_db() as conn:
+        now = datetime.now().isoformat()
+        conn.execute("""
+            INSERT INTO study_records (arxiv_id, full_text, translated_text, summary, studied_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(arxiv_id) DO UPDATE SET
+                full_text = excluded.full_text,
+                translated_text = excluded.translated_text,
+                summary = excluded.summary,
+                studied_at = excluded.studied_at
+        """, (arxiv_id, full_text, translated_text, summary, now))
+
+
+def get_study_history():
+    with get_db() as conn:
+        rows = conn.execute("""
+            SELECT sr.arxiv_id, sr.summary, sr.studied_at, p.title, p.categories
+            FROM study_records sr
+            JOIN papers p ON sr.arxiv_id = p.arxiv_id
+            ORDER BY sr.studied_at DESC
+        """).fetchall()
+        return [dict(row) for row in rows]

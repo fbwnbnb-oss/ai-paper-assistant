@@ -1,6 +1,7 @@
 from flask import Flask, render_template, jsonify, request
 from datetime import datetime, date
-from models import init_db, get_papers_by_date, get_all_dates, update_paper_status
+from models import (init_db, get_papers_by_date, get_all_dates, update_paper_status,
+                    get_study_record, save_study_record, get_study_history)
 from fetcher import fetch_and_save
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -113,6 +114,78 @@ def github_sync():
     from github_sync import sync_to_github
     result = sync_to_github()
     return jsonify(result)
+
+
+@app.route('/study/<arxiv_id>')
+def study_page(arxiv_id):
+    from models import get_db
+    with get_db() as conn:
+        paper = conn.execute(
+            "SELECT * FROM papers WHERE arxiv_id = ?", (arxiv_id,)
+        ).fetchone()
+
+    if not paper:
+        return "Paper not found", 404
+
+    record = get_study_record(arxiv_id)
+    return render_template('study.html', paper=dict(paper), record=record)
+
+
+@app.route('/api/study/start', methods=['POST'])
+def study_start():
+    import json
+    from pdf_extractor import extract_text_from_url
+    from ai_service import translate_text, summarize_paper
+
+    data = request.get_json()
+    arxiv_id = data.get('arxiv_id')
+    pdf_url = data.get('pdf_url')
+
+    if not arxiv_id or not pdf_url:
+        return jsonify({'success': False, 'error': '缺少参数'}), 400
+
+    existing = get_study_record(arxiv_id)
+    if existing and existing.get('translated_text'):
+        return jsonify({
+            'success': True,
+            'cached': True,
+            'paragraphs': json.loads(existing['translated_text']),
+            'summary': existing['summary']
+        })
+
+    try:
+        from models import get_db
+        with get_db() as conn:
+            paper = conn.execute(
+                "SELECT title FROM papers WHERE arxiv_id = ?", (arxiv_id,)
+            ).fetchone()
+        title = paper['title'] if paper else ''
+
+        paragraphs = extract_text_from_url(pdf_url)
+        translated = translate_text(paragraphs)
+        full_text = '\n\n'.join(paragraphs)
+        summary = summarize_paper(title, full_text)
+
+        save_study_record(arxiv_id, full_text, json.dumps(translated, ensure_ascii=False), summary)
+
+        return jsonify({
+            'success': True,
+            'cached': False,
+            'paragraphs': translated,
+            'summary': summary
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/study/recommend-keywords', methods=['GET'])
+def study_recommend():
+    from ai_service import recommend_keywords
+    history = get_study_history()
+    if not history:
+        return jsonify({'success': True, 'keywords': []})
+    keywords = recommend_keywords(history)
+    return jsonify({'success': True, 'keywords': keywords})
 
 
 if __name__ == '__main__':

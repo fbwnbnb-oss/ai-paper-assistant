@@ -1027,4 +1027,275 @@ body {
     .detail-title { font-size: 21px; }
     .logo-text { display: none; }
     .modal { width: 96%; }
+    .bilingual-container { grid-template-columns: 1fr !important; }
+    .bilingual-header { display: none !important; }
+    .bilingual-row { grid-template-columns: 1fr !important; }
+    .bilingual-en, .bilingual-zh { padding: 14px 16px !important; }
+}
+
+/* ============================================================
+   Purple Button (Study)
+   ============================================================ */
+.btn-purple {
+    background: linear-gradient(135deg, var(--purple) 0%, #a855f7 100%);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(125,61,209,0.3);
+}
+.btn-purple:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(125,61,209,0.4);
+}
+
+/* ============================================================
+   AI Recommend Tags
+   ============================================================ */
+.ai-recommend-section .field-label {
+    color: var(--purple);
+}
+
+.qtag-ai {
+    background: rgba(125,61,209,0.08);
+    color: var(--purple);
+    border-color: rgba(125,61,209,0.18);
+}
+
+.qtag-ai:hover {
+    background: var(--purple);
+    color: #fff;
+    border-color: var(--purple);
+    box-shadow: 0 4px 14px rgba(125,61,209,0.3);
+}
+
+.qtag-ai.selected {
+    background: var(--purple);
+    color: #fff;
+    border-color: var(--purple);
+}
+
+.ai-tags-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--text-3);
+}
+
+.spinner-sm {
+    width: 12px; height: 12px;
+    border: 2px solid var(--border-md);
+    border-top-color: var(--purple);
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+    flex-shrink: 0;
+}
+
+/* ============================================================
+   Study Page
+   ============================================================ */
+.study-wrap {
+    background: var(--bg-card);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-radius: var(--r-xl);
+    padding: 36px;
+    margin: 36px 0 60px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-md);
+    animation: fade-in 0.45s var(--ease) both;
+}
+
+/* Summary Panel */
+.summary-panel {
+    background: var(--bg-code);
+    border-radius: var(--r-lg);
+    border: 1px solid var(--border);
+    margin: 24px 0;
+    overflow: hidden;
+    transition: box-shadow 0.3s var(--ease);
+}
+
+.summary-panel:hover {
+    box-shadow: var(--shadow-sm);
+}
+
+.summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.summary-header:hover {
+    background: var(--border);
+}
+
+.summary-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.summary-header-left svg {
+    color: var(--purple);
+}
+
+.summary-chevron {
+    color: var(--text-3);
+    transition: transform 0.3s var(--ease);
+}
+
+.summary-chevron.rotated {
+    transform: rotate(180deg);
+}
+
+.summary-body {
+    padding: 0 20px 20px;
+    max-height: 600px;
+    overflow-y: auto;
+    transition: max-height 0.4s var(--ease), padding 0.4s var(--ease), opacity 0.3s;
+}
+
+.summary-body.collapsed {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+    overflow: hidden;
+}
+
+.summary-placeholder {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-3);
+    font-size: 14px;
+    padding: 8px 0;
+}
+
+.summary-placeholder .spinner {
+    border-color: var(--border-md);
+    border-top-color: var(--purple);
+}
+
+.summary-content {
+    font-size: 14.5px;
+    line-height: 1.85;
+    color: var(--text-2);
+}
+
+.summary-content strong {
+    color: var(--text);
+    font-weight: 600;
+}
+
+/* Study Loading / Progress */
+.study-loading {
+    margin: 24px 0;
+    animation: fade-in 0.3s var(--ease) both;
+}
+
+.study-progress {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.study-progress-bar {
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, var(--accent), var(--purple));
+    border-radius: 2px;
+    transition: width 0.6s var(--ease);
+}
+
+.study-progress-text {
+    font-size: 13px;
+    color: var(--text-3);
+    text-align: center;
+}
+
+/* Bilingual Container */
+.bilingual-container {
+    margin-top: 24px;
+    animation: fade-in 0.5s var(--ease) both;
+}
+
+.bilingual-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    margin-bottom: 2px;
+}
+
+.bilingual-col-label {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-3);
+    padding: 10px 20px;
+}
+
+.bilingual-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.bilingual-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border-radius: var(--r-md);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    animation: fade-in 0.4s var(--ease) both;
+}
+
+.bilingual-row:hover {
+    border-color: var(--border-md);
+    box-shadow: var(--shadow-sm);
+}
+
+.bilingual-en,
+.bilingual-zh {
+    padding: 18px 22px;
+    font-size: 14px;
+    line-height: 1.8;
+}
+
+.bilingual-en {
+    background: var(--bg-code);
+    color: var(--text-2);
+    border-right: 1px solid var(--border);
+}
+
+.bilingual-zh {
+    background: var(--bg-card);
+    color: var(--text);
+}
+
+.bilingual-row:hover .bilingual-en {
+    background: rgba(0,113,227,0.03);
+}
+
+.bilingual-row:hover .bilingual-zh {
+    background: rgba(125,61,209,0.03);
+}
+
+[data-theme="dark"] .bilingual-row:hover .bilingual-en {
+    background: rgba(10,132,255,0.05);
+}
+
+[data-theme="dark"] .bilingual-row:hover .bilingual-zh {
+    background: rgba(191,90,242,0.05);
 }

@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}学习 · {{ paper.title }} — AI Paper Assistant{% endblock %}
+
+{% block content %}
+<div class="study-wrap">
+    <a href="/paper/{{ paper.arxiv_id }}" class="back-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        返回详情
+    </a>
+
+    <h1 class="detail-title">{{ paper.title }}</h1>
+    <div class="detail-authors">{{ paper.authors }}</div>
+
+    <!-- Summary Panel -->
+    <div class="summary-panel" id="summary-panel">
+        <div class="summary-header" onclick="toggleSummary()">
+            <div class="summary-header-left">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+                AI 论文总结
+            </div>
+            <svg class="summary-chevron" id="summary-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"/>
+            </svg>
+        </div>
+        <div class="summary-body" id="summary-body">
+            <div class="summary-placeholder" id="summary-placeholder">
+                <span class="spinner"></span> 正在生成论文总结…
+            </div>
+            <div class="summary-content" id="summary-content" style="display:none"></div>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div class="study-loading" id="study-loading">
+        <div class="study-progress">
+            <div class="study-progress-bar" id="progress-bar"></div>
+        </div>
+        <div class="study-progress-text" id="progress-text">正在下载并解析 PDF…</div>
+    </div>
+
+    <!-- Bilingual Content -->
+    <div class="bilingual-container" id="bilingual-container" style="display:none">
+        <div class="bilingual-header">
+            <div class="bilingual-col-label">English Original</div>
+            <div class="bilingual-col-label">中文翻译</div>
+        </div>
+        <div class="bilingual-body" id="bilingual-body"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ARXIV_ID = '{{ paper.arxiv_id }}';
+const PDF_URL = '{{ paper.pdf_url }}';
+const CACHED = {{ 'true' if record else 'false' }};
+const CACHED_DATA = {{ record.translated_text|safe if record and record.translated_text else 'null' }};
+const CACHED_SUMMARY = {{ record.summary|tojson if record and record.summary else 'null' }};
+
+function toggleSummary() {
+    const body = document.getElementById('summary-body');
+    const chevron = document.getElementById('summary-chevron');
+    body.classList.toggle('collapsed');
+    chevron.classList.toggle('rotated');
+}
+
+function renderBilingual(paragraphs) {
+    const container = document.getElementById('bilingual-body');
+    container.innerHTML = '';
+    paragraphs.forEach((p, i) => {
+        const row = document.createElement('div');
+        row.className = 'bilingual-row';
+        row.style.animationDelay = `${i * 0.03}s`;
+        row.innerHTML = `
+            <div class="bilingual-en">${escapeHtml(p.en)}</div>
+            <div class="bilingual-zh">${escapeHtml(p.zh)}</div>
+        `;
+        container.appendChild(row);
+    });
+    document.getElementById('bilingual-container').style.display = 'block';
+}
+
+function renderSummary(text) {
+    const content = document.getElementById('summary-content');
+    const placeholder = document.getElementById('summary-placeholder');
+    content.innerHTML = formatSummary(text);
+    placeholder.style.display = 'none';
+    content.style.display = 'block';
+}
+
+function formatSummary(text) {
+    return text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function updateProgress(percent, text) {
+    document.getElementById('progress-bar').style.width = percent + '%';
+    document.getElementById('progress-text').textContent = text;
+}
+
+async function startStudy() {
+    if (CACHED && CACHED_DATA) {
+        renderBilingual(CACHED_DATA);
+        renderSummary(CACHED_SUMMARY || '暂无总结');
+        document.getElementById('study-loading').style.display = 'none';
+        return;
+    }
+
+    updateProgress(10, '正在下载并解析 PDF…');
+
+    try {
+        updateProgress(30, '正在翻译论文内容…');
+
+        const resp = await fetch('/api/study/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ arxiv_id: ARXIV_ID, pdf_url: PDF_URL })
+        });
+
+        const data = await resp.json();
+
+        if (!data.success) {
+            updateProgress(0, '处理失败：' + (data.error || '未知错误'));
+            document.getElementById('summary-placeholder').innerHTML =
+                '<span style="color:var(--red)">总结生成失败</span>';
+            return;
+        }
+
+        updateProgress(90, '渲染中…');
+        renderBilingual(data.paragraphs);
+        renderSummary(data.summary || '暂无总结');
+
+        updateProgress(100, '完成');
+        setTimeout(() => {
+            document.getElementById('study-loading').style.display = 'none';
+        }, 500);
+
+    } catch (err) {
+        updateProgress(0, '网络错误：' + err.message);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', startStudy);
+</script>
+{% endblock %}
