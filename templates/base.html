@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AI Paper Assistant{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <a href="/" class="logo">📚 AI Paper Assistant</a>
+            <div class="nav-links">
+                <button id="fetch-btn" class="btn btn-sm">🔄 立即抓取</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        // Fetch now button
+        document.getElementById('fetch-btn')?.addEventListener('click', async () => {
+            const btn = document.getElementById('fetch-btn');
+            btn.disabled = true;
+            btn.textContent = '抓取中...';
+            try {
+                const resp = await fetch('/api/fetch-now', { method: 'POST' });
+                const data = await resp.json();
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('抓取失败: ' + data.error);
+                }
+            } catch (e) {
+                alert('网络错误');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔄 立即抓取';
+            }
+        });
+
+        // Mark as read
+        async function toggleRead(arxivId, current) {
+            await fetch('/api/mark-read', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ arxiv_id: arxivId, is_read: !current })
+            });
+            location.reload();
+        }
+
+        // Toggle favorite
+        async function toggleFavorite(arxivId, current) {
+            await fetch('/api/toggle-favorite', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ arxiv_id: arxivId, is_favorite: !current })
+            });
+            location.reload();
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

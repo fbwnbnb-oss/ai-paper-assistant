@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}AI Paper Assistant - {{ current_date }}{% endblock %}
+
+{% block content %}
+<div class="header">
+    <h1>今日推荐论文</h1>
+    <div class="date-picker">
+        <label>选择日期：</label>
+        <select id="date-select" onchange="location.href='/?date='+this.value">
+            {% for d in all_dates %}
+            <option value="{{ d }}" {% if d == current_date %}selected{% endif %}>
+                {{ d }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+{% if papers %}
+<div class="paper-list">
+    {% for paper in papers %}
+    <div class="paper-card {% if paper.is_read %}read{% endif %}">
+        <div class="paper-header">
+            <h2>
+                <a href="{{ url_for('paper_detail', arxiv_id=paper.arxiv_id) }}">
+                    {{ paper.title }}
+                </a>
+            </h2>
+            <div class="paper-actions">
+                <button class="btn-icon" onclick="toggleRead('{{ paper.arxiv_id }}', {{ paper.is_read }})">
+                    {% if paper.is_read %}✓{% else %}○{% endif %}
+                </button>
+                <button class="btn-icon" onclick="toggleFavorite('{{ paper.arxiv_id }}', {{ paper.is_favorite }})">
+                    {% if paper.is_favorite %}⭐{% else %}☆{% endif %}
+                </button>
+            </div>
+        </div>
+
+        <div class="paper-meta">
+            <span class="authors">{{ paper.authors }}</span>
+            <span class="date">{{ paper.published[:10] }}</span>
+        </div>
+
+        <div class="paper-categories">
+            {% for cat in paper.categories.split(', ') %}
+            <span class="category-tag">{{ cat }}</span>
+            {% endfor %}
+            <span class="score-badge">相关度: {{ paper.relevance_score }}</span>
+        </div>
+
+        <p class="paper-summary">{{ paper.summary[:300] }}{% if paper.summary|length > 300 %}...{% endif %}</p>
+
+        <div class="paper-footer">
+            <a href="{{ paper.pdf_url }}" target="_blank" class="btn btn-sm">📄 PDF</a>
+            <a href="https://arxiv.org/abs/{{ paper.arxiv_id }}" target="_blank" class="btn btn-sm">🔗 arXiv</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <p>📭 当天暂无推荐论文</p>
+    <p>点击上方"立即抓取"按钮获取最新论文</p>
+</div>
+{% endif %}
+{% endblock %}
