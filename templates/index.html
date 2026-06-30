@@ -1,17 +1,20 @@
 {% extends "base.html" %}
 
-{% block title %}AI Paper Assistant - {{ current_date }}{% endblock %}
+{% block title %}AI Paper Assistant — {{ current_date }}{% endblock %}
 
 {% block content %}
-<div class="header">
-    <h1>今日推荐论文</h1>
+<div class="page-header">
+    <h1>
+        今日推荐
+        {% if papers %}
+        <span class="count">{{ papers|length }} 篇</span>
+        {% endif %}
+    </h1>
     <div class="date-picker">
-        <label>选择日期：</label>
+        <label for="date-select">日期</label>
         <select id="date-select" onchange="location.href='/?date='+this.value">
             {% for d in all_dates %}
-            <option value="{{ d }}" {% if d == current_date %}selected{% endif %}>
-                {{ d }}
-            </option>
+            <option value="{{ d }}" {% if d == current_date %}selected{% endif %}>{{ d }}</option>
             {% endfor %}
         </select>
     </div>
@@ -28,40 +31,80 @@
                 </a>
             </h2>
             <div class="paper-actions">
-                <button class="btn-icon" onclick="toggleRead('{{ paper.arxiv_id }}', {{ paper.is_read }})">
-                    {% if paper.is_read %}✓{% else %}○{% endif %}
+                <button class="action-btn {% if paper.is_read %}active-read{% endif %}"
+                        onclick="toggleRead('{{ paper.arxiv_id }}', {{ 'true' if paper.is_read else 'false' }})"
+                        title="{% if paper.is_read %}标记未读{% else %}标记已读{% endif %}">
+                    {% if paper.is_read %}
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    {% else %}
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                    </svg>
+                    {% endif %}
                 </button>
-                <button class="btn-icon" onclick="toggleFavorite('{{ paper.arxiv_id }}', {{ paper.is_favorite }})">
-                    {% if paper.is_favorite %}⭐{% else %}☆{% endif %}
+                <button class="action-btn {% if paper.is_favorite %}active-fav{% endif %}"
+                        onclick="toggleFavorite('{{ paper.arxiv_id }}', {{ 'true' if paper.is_favorite else 'false' }})"
+                        title="{% if paper.is_favorite %}取消收藏{% else %}收藏{% endif %}">
+                    {% if paper.is_favorite %}
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                    {% else %}
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                    {% endif %}
                 </button>
             </div>
         </div>
 
         <div class="paper-meta">
             <span class="authors">{{ paper.authors }}</span>
-            <span class="date">{{ paper.published[:10] }}</span>
+            <span>{{ paper.published[:10] }}</span>
         </div>
 
-        <div class="paper-categories">
+        <div class="tags-row">
             {% for cat in paper.categories.split(', ') %}
-            <span class="category-tag">{{ cat }}</span>
+            <span class="cat-tag">{{ cat }}</span>
             {% endfor %}
-            <span class="score-badge">相关度: {{ paper.relevance_score }}</span>
+            <span class="score-badge">相关度 {{ paper.relevance_score }}</span>
         </div>
 
-        <p class="paper-summary">{{ paper.summary[:300] }}{% if paper.summary|length > 300 %}...{% endif %}</p>
+        <p class="paper-summary">{{ paper.summary[:280] }}{% if paper.summary|length > 280 %}…{% endif %}</p>
 
         <div class="paper-footer">
-            <a href="{{ paper.pdf_url }}" target="_blank" class="btn btn-sm">📄 PDF</a>
-            <a href="https://arxiv.org/abs/{{ paper.arxiv_id }}" target="_blank" class="btn btn-sm">🔗 arXiv</a>
+            <a href="{{ paper.pdf_url }}" target="_blank" rel="noopener" class="link-btn">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                PDF
+            </a>
+            <a href="https://arxiv.org/abs/{{ paper.arxiv_id }}" target="_blank" rel="noopener" class="link-btn">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                    <polyline points="15 3 21 3 21 9"/>
+                    <line x1="10" y1="14" x2="21" y2="3"/>
+                </svg>
+                arXiv
+            </a>
+            <a href="{{ url_for('paper_detail', arxiv_id=paper.arxiv_id) }}" class="link-btn">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                详情
+            </a>
         </div>
     </div>
     {% endfor %}
 </div>
 {% else %}
 <div class="empty-state">
-    <p>📭 当天暂无推荐论文</p>
-    <p>点击上方"立即抓取"按钮获取最新论文</p>
+    <span class="empty-icon">📭</span>
+    <p>当天暂无推荐论文</p>
+    <small>点击右上角「抓取论文」获取最新内容</small>
 </div>
 {% endif %}
 {% endblock %}

@@ -3,18 +3,14 @@ from datetime import datetime, date
 from models import init_db, get_papers_by_date, get_all_dates, update_paper_status
 from fetcher import fetch_and_save
 from apscheduler.schedulers.background import BackgroundScheduler
-import threading
 
 app = Flask(__name__)
 
-# Initialize database
 init_db()
 
-# Scheduler for daily paper fetching
 scheduler = BackgroundScheduler()
 
 def scheduled_fetch():
-    """Called by scheduler to fetch papers daily."""
     print(f"[{datetime.now()}] Scheduled fetch started...")
     try:
         count = fetch_and_save()
@@ -22,32 +18,29 @@ def scheduled_fetch():
     except Exception as e:
         print(f"[{datetime.now()}] Fetch error: {e}")
 
-# Schedule daily fetch at 8:00 AM
 scheduler.add_job(scheduled_fetch, 'cron', hour=8, minute=0)
 scheduler.start()
 
+
 @app.route('/')
 def index():
-    """Show papers for a specific date (default: today)."""
     target_date = request.args.get('date', date.today().strftime('%Y-%m-%d'))
     papers = get_papers_by_date(target_date)
     all_dates = get_all_dates()
 
-    # If no papers for today, try to fetch
     if not papers and target_date == date.today().strftime('%Y-%m-%d'):
-        print("No papers found for today, fetching now...")
         fetch_and_save()
         papers = get_papers_by_date(target_date)
         all_dates = get_all_dates()
 
     return render_template('index.html',
-                         papers=papers,
-                         current_date=target_date,
-                         all_dates=all_dates)
+                           papers=papers,
+                           current_date=target_date,
+                           all_dates=all_dates)
+
 
 @app.route('/paper/<arxiv_id>')
 def paper_detail(arxiv_id):
-    """Show detailed view of a single paper."""
     from models import get_db
     with get_db() as conn:
         paper = conn.execute("""
@@ -64,62 +57,77 @@ def paper_detail(arxiv_id):
 
     return render_template('paper.html', paper=dict(paper))
 
+
 @app.route('/api/mark-read', methods=['POST'])
 def mark_read():
-    """Mark a paper as read/unread."""
     data = request.get_json()
-    arxiv_id = data.get('arxiv_id')
-    is_read = data.get('is_read', True)
-
-    update_paper_status(arxiv_id, is_read=is_read)
+    update_paper_status(data.get('arxiv_id'), is_read=data.get('is_read', True))
     return jsonify({'success': True})
+
 
 @app.route('/api/toggle-favorite', methods=['POST'])
 def toggle_favorite():
-    """Toggle favorite status of a paper."""
     data = request.get_json()
-    arxiv_id = data.get('arxiv_id')
-    is_favorite = data.get('is_favorite', True)
-
-    update_paper_status(arxiv_id, is_favorite=is_favorite)
+    update_paper_status(data.get('arxiv_id'), is_favorite=data.get('is_favorite', True))
     return jsonify({'success': True})
+
 
 @app.route('/api/fetch-now', methods=['POST'])
 def fetch_now():
-    """Manually trigger paper fetch with optional custom keywords."""
     try:
         data = request.get_json() or {}
         keywords = data.get('keywords', None)
-
-        # Parse keywords if provided (comma-separated string or list)
         if isinstance(keywords, str):
             keywords = [kw.strip() for kw in keywords.split(',') if kw.strip()]
-
         count = fetch_and_save(custom_keywords=keywords if keywords else None)
-        keyword_msg = f" (关键词: {', '.join(keywords)})" if keywords else ""
-        return jsonify({
-            'success': True,
-            'message': f'抓取到 {count} 篇新论文{keyword_msg}',
-            'count': count
-        })
+        kw_msg = f" (关键词: {', '.join(keywords)})" if keywords else ""
+        return jsonify({'success': True, 'message': f'抓取到 {count} 篇新论文{kw_msg}', 'count': count})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+@app.route('/api/github-config', methods=['GET', 'POST'])
+def github_config():
+    from github_sync import load_config, save_config
+    if request.method == 'GET':
+        config = load_config()
+        return jsonify({
+            'repo': config.get('repo', ''),
+            'branch': config.get('branch', 'main'),
+            'has_token': bool(config.get('token', ''))
+        })
+    data = request.get_json() or {}
+    config = load_config()
+    if data.get('token'):
+        config['token'] = data['token']
+    if data.get('repo') is not None:
+        config['repo'] = data['repo']
+    if data.get('branch') is not None:
+        config['branch'] = data['branch'] or 'main'
+    save_config(config)
+    return jsonify({'success': True})
+
+
+@app.route('/api/github-sync', methods=['POST'])
+def github_sync():
+    from github_sync import sync_to_github
+    result = sync_to_github()
+    return jsonify(result)
+
+
 if __name__ == '__main__':
-    # Fetch papers on startup if none exist for today
     today = date.today().strftime('%Y-%m-%d')
-    papers = get_papers_by_date(today)
-    if not papers:
-        print("No papers found for today, fetching...")
+    if not get_papers_by_date(today):
+        print("No papers for today, fetching...")
         try:
             count = fetch_and_save()
             print(f"Fetched {count} papers")
         except Exception as e:
             print(f"Initial fetch failed: {e}")
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("AI Paper Assistant is running!")
     print("Open your browser to: http://localhost:5000")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     app.run(debug=True, host='0.0.0.0', port=5000)

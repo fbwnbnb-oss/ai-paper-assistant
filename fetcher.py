@@ -34,14 +34,6 @@ KEYWORDS_WEIGHTED = [
 
 TARGET_CATEGORIES = ['cs.AI', 'cs.MA', 'cs.CL', 'cs.LG', 'cs.RO']
 
-def calc_relevance(title: str, summary: str) -> int:
-    text = (title + ' ' + summary).lower()
-    score = 0
-    for pattern, weight in KEYWORDS_WEIGHTED:
-        matches = len(re.findall(pattern, text, re.IGNORECASE))
-        score += matches * weight
-    return score
-
 def fetch_papers(max_results: int = 80, top_n: int = 10, custom_keywords: list = None) -> list:
     """Fetch recent AI/agent papers from arXiv and return the top N by relevance.
 

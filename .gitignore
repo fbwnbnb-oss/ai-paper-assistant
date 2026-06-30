@@ -1,32 +1,11 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
 venv/
-env/
-ENV/
+__pycache__/
+*.pyc
+*.pyo
+papers.db
+github_config.json
+.env
+.DS_Store
 *.egg-info/
 dist/
 build/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Database (large, contains user data)
-papers.db
-
-# Environment variables
-.env
-.env.local
-
-# Logs
-*.log

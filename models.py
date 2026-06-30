@@ -1,8 +1,9 @@
 import sqlite3
+import os
 from datetime import datetime, date
 from contextlib import contextmanager
 
-DB_PATH = "papers.db"
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "papers.db")
 
 @contextmanager
 def get_db():

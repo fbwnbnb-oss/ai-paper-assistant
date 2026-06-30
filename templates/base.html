@@ -1,204 +1,420 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}AI Paper Assistant{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script>
+        // Immediately apply saved theme before paint to avoid flash
+        (function() {
+            const t = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
 </head>
 <body>
-    <nav class="navbar">
-        <div class="container">
-            <a href="/" class="logo">
-                <span class="logo-icon">📚</span>
-                <span class="logo-text">AI Paper Assistant</span>
-            </a>
-            <div class="nav-links">
-                <button id="fetch-btn" class="btn btn-fetch">
-                    <span class="btn-icon-wrapper">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                            <path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/>
-                            <path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/>
-                        </svg>
-                    </span>
-                    <span class="btn-text">抓取论文</span>
-                </button>
-            </div>
-        </div>
-    </nav>
 
-    <!-- Keyword Search Modal -->
-    <div class="modal-overlay" id="modal-overlay">
-        <div class="modal" id="fetch-modal">
-            <div class="modal-header">
-                <h2>🔍 关键词搜索</h2>
-                <button class="modal-close" id="modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p class="modal-desc">输入关键词搜索 arXiv 论文，多个关键词用逗号分隔。留空则使用默认推荐。</p>
-                <div class="search-input-wrapper">
-                    <input type="text" id="keyword-input" class="search-input"
-                           placeholder="例如: multi-agent, LLM, reasoning, planning"
-                           autocomplete="off">
-                    <div class="input-focus-ring"></div>
-                </div>
-                <div class="keyword-tags" id="keyword-tags">
-                    <span class="quick-tag" data-kw="multi-agent">multi-agent</span>
-                    <span class="quick-tag" data-kw="LLM">LLM</span>
-                    <span class="quick-tag" data-kw="reasoning">reasoning</span>
-                    <span class="quick-tag" data-kw="planning">planning</span>
-                    <span class="quick-tag" data-kw="tool use">tool use</span>
-                    <span class="quick-tag" data-kw="RAG">RAG</span>
-                    <span class="quick-tag" data-kw="code generation">code generation</span>
-                    <span class="quick-tag" data-kw="reinforcement learning">RL</span>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" id="cancel-btn">取消</button>
-                <button class="btn btn-primary" id="confirm-fetch">
-                    <span class="btn-loading" id="btn-loading">
-                        <span class="spinner"></span>
-                        抓取中...
-                    </span>
-                    <span class="btn-default">开始抓取</span>
-                </button>
-            </div>
+<!-- ── Animated background orbs ── -->
+<div class="bg-canvas" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="orb orb-4"></div>
+</div>
+
+<!-- ── Navbar ── -->
+<nav class="navbar">
+    <div class="container">
+        <a href="/" class="logo">
+            <span class="logo-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                </svg>
+            </span>
+            <span class="logo-text">AI Paper Assistant</span>
+        </a>
+
+        <div class="nav-actions">
+            <!-- Dark mode toggle -->
+            <button id="theme-toggle" class="icon-btn" title="切换主题" aria-label="切换主题">
+                <svg id="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+                    <circle cx="12" cy="12" r="5"/>
+                    <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                    <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                </svg>
+                <svg id="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+            </button>
+
+            <!-- GitHub sync -->
+            <button id="github-btn" class="icon-btn github-btn" title="同步到 GitHub" aria-label="同步到 GitHub">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+                </svg>
+            </button>
+
+            <!-- Fetch papers -->
+            <button id="fetch-btn" class="btn" style="gap:7px">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="23 4 23 10 17 10"/>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                </svg>
+                抓取论文
+            </button>
         </div>
     </div>
+</nav>
 
-    <!-- Toast Notification -->
-    <div class="toast" id="toast">
-        <span class="toast-icon">✓</span>
-        <span class="toast-message" id="toast-message"></span>
+<!-- ── Fetch / Keyword Search Modal ── -->
+<div class="modal-overlay" id="fetch-overlay" role="dialog" aria-modal="true" aria-label="关键词搜索">
+    <div class="modal" id="fetch-modal">
+        <div class="modal-header">
+            <h2>关键词搜索</h2>
+            <button class="modal-close-btn" id="fetch-close" aria-label="关闭">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-desc">输入关键词从 arXiv 搜索论文，多个关键词用逗号分隔。留空则使用默认推荐算法。</p>
+            <div class="field-label">关键词</div>
+            <input type="text" id="kw-input" class="text-input"
+                   placeholder="例如: multi-agent, LLM, reasoning"
+                   autocomplete="off" spellcheck="false">
+            <div class="quick-tags" id="quick-tags">
+                <span class="qtag" data-kw="multi-agent">multi-agent</span>
+                <span class="qtag" data-kw="LLM">LLM</span>
+                <span class="qtag" data-kw="reasoning">reasoning</span>
+                <span class="qtag" data-kw="planning">planning</span>
+                <span class="qtag" data-kw="tool use">tool use</span>
+                <span class="qtag" data-kw="RAG">RAG</span>
+                <span class="qtag" data-kw="code generation">code generation</span>
+                <span class="qtag" data-kw="reinforcement learning">RL</span>
+                <span class="qtag" data-kw="vision language model">VLM</span>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" id="fetch-cancel">取消</button>
+            <button class="btn btn-green" id="fetch-confirm">
+                <span id="fetch-default-label" style="display:flex;align-items:center;gap:7px">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                    开始搜索
+                </span>
+                <span id="fetch-loading-label" style="display:none;align-items:center;gap:7px">
+                    <span class="spinner"></span>搜索中…
+                </span>
+            </button>
+        </div>
     </div>
+</div>
 
-    <main class="container">
-        {% block content %}{% endblock %}
-    </main>
+<!-- ── GitHub Config & Sync Modal ── -->
+<div class="modal-overlay" id="github-overlay" role="dialog" aria-modal="true" aria-label="GitHub 同步">
+    <div class="modal" id="github-modal">
+        <div class="modal-header">
+            <h2>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-3px;margin-right:6px">
+                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+                </svg>
+                GitHub 同步
+            </h2>
+            <button class="modal-close-btn" id="github-close" aria-label="关闭">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-desc">配置后一键将项目同步到你的 GitHub 仓库。Token 仅保存在本地。</p>
 
-    <script>
-        // Modal controls
-        const modalOverlay = document.getElementById('modal-overlay');
-        const fetchModal = document.getElementById('fetch-modal');
-        const fetchBtn = document.getElementById('fetch-btn');
-        const modalClose = document.getElementById('modal-close');
-        const cancelBtn = document.getElementById('cancel-btn');
-        const confirmFetch = document.getElementById('confirm-fetch');
-        const keywordInput = document.getElementById('keyword-input');
-        const toast = document.getElementById('toast');
-        const toastMessage = document.getElementById('toast-message');
-        const btnLoading = document.getElementById('btn-loading');
-        const btnDefault = confirmFetch.querySelector('.btn-default');
+            <div class="field-label">Personal Access Token</div>
+            <input type="password" id="gh-token" class="text-input"
+                   placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+            <p class="token-hint">需要 <strong>repo</strong> 权限。
+                <a href="https://github.com/settings/tokens/new" target="_blank" rel="noopener">在 GitHub 创建 →</a>
+            </p>
 
-        // Quick tags
-        document.querySelectorAll('.quick-tag').forEach(tag => {
-            tag.addEventListener('click', () => {
-                const kw = tag.dataset.kw;
-                const current = keywordInput.value.trim();
-                if (current) {
-                    const existing = current.split(',').map(s => s.trim()).filter(Boolean);
-                    if (!existing.includes(kw)) {
-                        keywordInput.value = existing.concat(kw).join(', ');
-                    }
-                } else {
-                    keywordInput.value = kw;
-                }
-                keywordInput.focus();
-            });
-        });
+            <div class="field-label">仓库名称</div>
+            <input type="text" id="gh-repo" class="text-input"
+                   placeholder="fbwnbnb/ai-paper-assistant" autocomplete="off">
 
-        function openModal() {
-            modalOverlay.classList.add('active');
-            fetchModal.classList.add('active');
-            keywordInput.value = '';
-            keywordInput.focus();
+            <div class="field-label">分支</div>
+            <input type="text" id="gh-branch" class="text-input"
+                   placeholder="main" autocomplete="off" style="margin-bottom:0">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" id="github-cancel">取消</button>
+            <button class="btn btn-ghost" id="github-save">保存配置</button>
+            <button class="btn btn-blue" id="github-sync-btn">
+                <span id="sync-default-label" style="display:flex;align-items:center;gap:7px">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/>
+                        <polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/>
+                    </svg>
+                    推送到 GitHub
+                </span>
+                <span id="sync-loading-label" style="display:none;align-items:center;gap:7px">
+                    <span class="spinner"></span>同步中…
+                </span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Toast ── -->
+<div class="toast" id="toast" role="status" aria-live="polite">
+    <span class="toast-dot"></span>
+    <span class="toast-text" id="toast-text"></span>
+    <a class="toast-link" id="toast-link" href="#" target="_blank" rel="noopener" style="display:none"></a>
+</div>
+
+<main class="container">
+    {% block content %}{% endblock %}
+</main>
+
+<script>
+/* ─── Theme ─── */
+function applyTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    localStorage.setItem('theme', t);
+    document.getElementById('icon-sun').style.display  = t === 'dark' ? 'block' : 'none';
+    document.getElementById('icon-moon').style.display = t === 'dark' ? 'none'  : 'block';
+}
+
+applyTheme(localStorage.getItem('theme') || 'light');
+
+document.getElementById('theme-toggle').addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme');
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+});
+
+/* ─── Toast ─── */
+function showToast(text, { isError = false, link = null, linkText = null } = {}) {
+    const toast     = document.getElementById('toast');
+    const toastText = document.getElementById('toast-text');
+    const toastLink = document.getElementById('toast-link');
+
+    toastText.textContent = text;
+    toast.classList.toggle('error', isError);
+
+    if (link) {
+        toastLink.href        = link;
+        toastLink.textContent = linkText || '查看 →';
+        toastLink.style.display = 'inline';
+    } else {
+        toastLink.style.display = 'none';
+    }
+
+    toast.classList.add('show');
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => toast.classList.remove('show'), 4000);
+}
+
+/* ─── Generic modal helpers ─── */
+function openModal(overlayId) {
+    document.getElementById(overlayId).classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeModal(overlayId) {
+    document.getElementById(overlayId).classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+function bindClose(overlayId, ...btnIds) {
+    const overlay = document.getElementById(overlayId);
+    btnIds.forEach(id => document.getElementById(id).addEventListener('click', () => closeModal(overlayId)));
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(overlayId); });
+}
+
+/* ─── Fetch / Keyword modal ─── */
+const fetchBtn     = document.getElementById('fetch-btn');
+const kwInput      = document.getElementById('kw-input');
+const fetchConfirm = document.getElementById('fetch-confirm');
+const fetchDef     = document.getElementById('fetch-default-label');
+const fetchLoad    = document.getElementById('fetch-loading-label');
+
+bindClose('fetch-overlay', 'fetch-close', 'fetch-cancel');
+fetchBtn.addEventListener('click', () => { openModal('fetch-overlay'); kwInput.value = ''; kwInput.focus(); });
+kwInput.addEventListener('keydown', e => { if (e.key === 'Enter') fetchConfirm.click(); });
+
+// Quick tags
+document.querySelectorAll('.qtag').forEach(tag => {
+    tag.addEventListener('click', () => {
+        const kw = tag.dataset.kw;
+        const parts = kwInput.value.split(',').map(s => s.trim()).filter(Boolean);
+        if (parts.includes(kw)) {
+            kwInput.value = parts.filter(p => p !== kw).join(', ');
+            tag.classList.remove('selected');
+        } else {
+            kwInput.value = parts.concat(kw).join(', ');
+            tag.classList.add('selected');
         }
+        kwInput.focus();
+    });
+});
 
-        function closeModal() {
-            modalOverlay.classList.remove('active');
-            fetchModal.classList.remove('active');
-        }
+fetchConfirm.addEventListener('click', async () => {
+    const kw = kwInput.value.trim();
+    fetchConfirm.disabled = true;
+    fetchDef.style.display  = 'none';
+    fetchLoad.style.display = 'flex';
 
-        function showToast(message, isError = false) {
-            toastMessage.textContent = message;
-            toast.classList.toggle('error', isError);
-            toast.classList.add('active');
-            setTimeout(() => toast.classList.remove('active'), 3500);
-        }
-
-        fetchBtn.addEventListener('click', openModal);
-        modalClose.addEventListener('click', closeModal);
-        cancelBtn.addEventListener('click', closeModal);
-        modalOverlay.addEventListener('click', (e) => {
-            if (e.target === modalOverlay) closeModal();
+    try {
+        const resp = await fetch('/api/fetch-now', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(kw ? { keywords: kw } : {})
         });
+        const data = await resp.json();
+        if (data.success) {
+            showToast(data.message);
+            closeModal('fetch-overlay');
+            setTimeout(() => location.reload(), 700);
+        } else {
+            showToast('抓取失败: ' + data.error, { isError: true });
+        }
+    } catch {
+        showToast('网络错误，请重试', { isError: true });
+    } finally {
+        fetchConfirm.disabled = false;
+        fetchDef.style.display  = 'flex';
+        fetchLoad.style.display = 'none';
+    }
+});
 
-        // Enter key to submit
-        keywordInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') confirmFetch.click();
+/* ─── GitHub modal ─── */
+const githubBtn   = document.getElementById('github-btn');
+const ghToken     = document.getElementById('gh-token');
+const ghRepo      = document.getElementById('gh-repo');
+const ghBranch    = document.getElementById('gh-branch');
+const githubSave  = document.getElementById('github-save');
+const githubSync  = document.getElementById('github-sync-btn');
+const syncDef     = document.getElementById('sync-default-label');
+const syncLoad    = document.getElementById('sync-loading-label');
+
+bindClose('github-overlay', 'github-close', 'github-cancel');
+
+githubBtn.addEventListener('click', async () => {
+    openModal('github-overlay');
+    try {
+        const resp = await fetch('/api/github-config');
+        const cfg  = await resp.json();
+        ghRepo.value   = cfg.repo   || '';
+        ghBranch.value = cfg.branch || 'main';
+        ghToken.placeholder = cfg.has_token ? '••••••••••••••• (已保存)' : 'ghp_xxxxxxxxxxxxxxxxxxxx';
+        ghToken.value = '';
+    } catch { /* silent */ }
+});
+
+githubSave.addEventListener('click', async () => {
+    const body = { repo: ghRepo.value.trim(), branch: ghBranch.value.trim() || 'main' };
+    if (ghToken.value.trim()) body.token = ghToken.value.trim();
+    try {
+        await fetch('/api/github-config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
         });
+        showToast('配置已保存');
+        ghToken.value = '';
+        ghToken.placeholder = '••••••••••••••• (已保存)';
+    } catch {
+        showToast('保存失败', { isError: true });
+    }
+});
 
-        // Fetch with keywords
-        confirmFetch.addEventListener('click', async () => {
-            const keywords = keywordInput.value.trim();
+githubSync.addEventListener('click', async () => {
+    // Auto-save current inputs first if filled
+    const body = { repo: ghRepo.value.trim(), branch: ghBranch.value.trim() || 'main' };
+    if (ghToken.value.trim()) body.token = ghToken.value.trim();
+    if (body.repo || body.token) {
+        await fetch('/api/github-config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+    }
 
-            // Show loading state
-            confirmFetch.disabled = true;
-            btnLoading.style.display = 'flex';
-            btnDefault.style.display = 'none';
+    githubSync.disabled = true;
+    syncDef.style.display  = 'none';
+    syncLoad.style.display = 'flex';
 
-            try {
-                const body = keywords ? { keywords: keywords } : {};
-                const resp = await fetch('/api/fetch-now', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
-                const data = await resp.json();
-                if (data.success) {
-                    showToast(data.message);
-                    closeModal();
-                    setTimeout(() => location.reload(), 800);
-                } else {
-                    showToast('抓取失败: ' + data.error, true);
-                }
-            } catch (e) {
-                showToast('网络错误，请重试', true);
-            } finally {
-                confirmFetch.disabled = false;
-                btnLoading.style.display = 'none';
-                btnDefault.style.display = 'block';
+    try {
+        const resp = await fetch('/api/github-sync', { method: 'POST' });
+        const data = await resp.json();
+        if (data.success) {
+            closeModal('github-overlay');
+            showToast(data.message, { link: data.url, linkText: '查看仓库 →' });
+        } else {
+            showToast(data.error || '同步失败', { isError: true });
+        }
+    } catch {
+        showToast('网络错误', { isError: true });
+    } finally {
+        githubSync.disabled = false;
+        syncDef.style.display  = 'flex';
+        syncLoad.style.display = 'none';
+    }
+});
+
+/* ─── Card actions ─── */
+async function toggleRead(arxivId, current) {
+    await fetch('/api/mark-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ arxiv_id: arxivId, is_read: !current })
+    });
+    location.reload();
+}
+
+async function toggleFavorite(arxivId, current) {
+    await fetch('/api/toggle-favorite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ arxiv_id: arxivId, is_favorite: !current })
+    });
+    location.reload();
+}
+
+/* ─── Staggered card entrance ─── */
+document.addEventListener('DOMContentLoaded', () => {
+    const cards = document.querySelectorAll('.paper-card');
+    const io = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+                io.unobserve(entry.target);
             }
         });
+    }, { threshold: 0.05 });
 
-        // Mark as read
-        async function toggleRead(arxivId, current) {
-            await fetch('/api/mark-read', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ arxiv_id: arxivId, is_read: !current })
-            });
-            location.reload();
-        }
+    cards.forEach((card, i) => {
+        card.style.transitionDelay = `${i * 0.06}s`;
+        io.observe(card);
+    });
+});
 
-        // Toggle favorite
-        async function toggleFavorite(arxivId, current) {
-            await fetch('/api/toggle-favorite', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ arxiv_id: arxivId, is_favorite: !current })
-            });
-            location.reload();
-        }
+/* ─── 3D tilt on paper cards ─── */
+document.addEventListener('mousemove', (e) => {
+    const card = e.target.closest('.paper-card');
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width  - 0.5;
+    const y = (e.clientY - rect.top)  / rect.height - 0.5;
+    card.style.transform = `translateY(-5px) rotateX(${-y * 4}deg) rotateY(${x * 4}deg)`;
+});
 
-        // Animate paper cards on load
-        document.addEventListener('DOMContentLoaded', () => {
-            document.querySelectorAll('.paper-card').forEach((card, i) => {
-                card.style.animationDelay = `${i * 0.08}s`;
-                card.classList.add('animate-in');
-            });
-        });
-    </script>
-    {% block scripts %}{% endblock %}
+document.addEventListener('mouseleave', (e) => {
+    const card = e.target.closest?.('.paper-card');
+    if (card) card.style.transform = '';
+}, true);
+
+document.querySelectorAll('.paper-card').forEach(card => {
+    card.addEventListener('mouseleave', () => { card.style.transform = ''; });
+});
+</script>
+
+{% block scripts %}{% endblock %}
 </body>
 </html>

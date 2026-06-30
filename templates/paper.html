@@ -1,41 +1,78 @@
 {% extends "base.html" %}
 
-{% block title %}{{ paper.title }} - AI Paper Assistant{% endblock %}
+{% block title %}{{ paper.title }} — AI Paper Assistant{% endblock %}
 
 {% block content %}
-<div class="paper-detail">
-    <a href="/" class="back-link">← 返回列表</a>
+<div class="detail-wrap">
+    <a href="/" class="back-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        返回列表
+    </a>
 
-    <h1>{{ paper.title }}</h1>
+    <h1 class="detail-title">{{ paper.title }}</h1>
 
-    <div class="paper-meta-detail">
-        <div class="authors-full">{{ paper.authors }}</div>
-        <div class="date-full">发表日期: {{ paper.published[:10] }}</div>
-    </div>
+    <div class="detail-authors">{{ paper.authors }}</div>
+    <div class="detail-date">发表日期：{{ paper.published[:10] }}</div>
 
-    <div class="paper-categories-detail">
+    <div class="detail-tags">
         {% for cat in paper.categories.split(', ') %}
-        <span class="category-tag">{{ cat }}</span>
+        <span class="cat-tag">{{ cat }}</span>
         {% endfor %}
-        <span class="score-badge">相关度: {{ paper.relevance_score }}</span>
+        <span class="score-badge">相关度 {{ paper.relevance_score }}</span>
     </div>
 
-    <div class="paper-actions-detail">
-        <button class="btn {% if paper.is_read %}btn-primary{% endif %}"
-                onclick="toggleRead('{{ paper.arxiv_id }}', {{ paper.is_read }})">
-            {% if paper.is_read %}✓ 已读{% else %}○ 标记已读{% endif %}
+    <div class="detail-actions">
+        <button class="btn {% if paper.is_read %}btn-green{% else %}btn-ghost{% endif %}"
+                onclick="toggleRead('{{ paper.arxiv_id }}', {{ 'true' if paper.is_read else 'false' }})">
+            {% if paper.is_read %}
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            已读
+            {% else %}
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+            </svg>
+            标记已读
+            {% endif %}
         </button>
-        <button class="btn {% if paper.is_favorite %}btn-primary{% endif %}"
-                onclick="toggleFavorite('{{ paper.arxiv_id }}', {{ paper.is_favorite }})">
-            {% if paper.is_favorite %}⭐ 已收藏{% else %}☆ 收藏{% endif %}
+
+        <button class="btn {% if paper.is_favorite %}btn-blue{% else %}btn-ghost{% endif %}"
+                onclick="toggleFavorite('{{ paper.arxiv_id }}', {{ 'true' if paper.is_favorite else 'false' }})">
+            {% if paper.is_favorite %}
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+            已收藏
+            {% else %}
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+            收藏
+            {% endif %}
         </button>
-        <a href="{{ paper.pdf_url }}" target="_blank" class="btn">📄 下载 PDF</a>
-        <a href="https://arxiv.org/abs/{{ paper.arxiv_id }}" target="_blank" class="btn">🔗 在 arXiv 查看</a>
+
+        <a href="{{ paper.pdf_url }}" target="_blank" rel="noopener" class="btn btn-ghost">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            下载 PDF
+        </a>
+
+        <a href="https://arxiv.org/abs/{{ paper.arxiv_id }}" target="_blank" rel="noopener" class="btn btn-ghost">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                <polyline points="15 3 21 3 21 9"/>
+                <line x1="10" y1="14" x2="21" y2="3"/>
+            </svg>
+            在 arXiv 查看
+        </a>
     </div>
 
-    <div class="paper-summary-full">
-        <h2>摘要</h2>
-        <p>{{ paper.summary }}</p>
-    </div>
+    <div class="abstract-label">摘要</div>
+    <p class="abstract-text">{{ paper.summary }}</p>
 </div>
 {% endblock %}
