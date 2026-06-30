@@ -86,10 +86,22 @@ def toggle_favorite():
 
 @app.route('/api/fetch-now', methods=['POST'])
 def fetch_now():
-    """Manually trigger paper fetch."""
+    """Manually trigger paper fetch with optional custom keywords."""
     try:
-        count = fetch_and_save()
-        return jsonify({'success': True, 'message': f'Fetched {count} new papers'})
+        data = request.get_json() or {}
+        keywords = data.get('keywords', None)
+
+        # Parse keywords if provided (comma-separated string or list)
+        if isinstance(keywords, str):
+            keywords = [kw.strip() for kw in keywords.split(',') if kw.strip()]
+
+        count = fetch_and_save(custom_keywords=keywords if keywords else None)
+        keyword_msg = f" (关键词: {', '.join(keywords)})" if keywords else ""
+        return jsonify({
+            'success': True,
+            'message': f'抓取到 {count} 篇新论文{keyword_msg}',
+            'count': count
+        })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

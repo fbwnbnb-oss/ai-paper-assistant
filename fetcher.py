@@ -42,10 +42,22 @@ def calc_relevance(title: str, summary: str) -> int:
         score += matches * weight
     return score
 
-def fetch_papers(max_results: int = 80, top_n: int = 10) -> list:
-    """Fetch recent AI/agent papers from arXiv and return the top N by relevance."""
+def fetch_papers(max_results: int = 80, top_n: int = 10, custom_keywords: list = None) -> list:
+    """Fetch recent AI/agent papers from arXiv and return the top N by relevance.
+
+    If custom_keywords is provided, use them for search instead of defaults.
+    """
     category_query = ' OR '.join(f'cat:{cat}' for cat in TARGET_CATEGORIES)
-    query = f'({category_query}) AND (ti:agent OR ti:multi-agent OR ti:LLM OR ti:reasoning OR ti:planning OR ti:tool OR ti:autonomous)'
+
+    if custom_keywords:
+        # Build query from custom keywords
+        kw_query = ' OR '.join(f'all:"{kw}"' for kw in custom_keywords)
+        query = f'({category_query}) AND ({kw_query})'
+        # Use custom keywords for relevance scoring
+        scoring_patterns = [(re.escape(kw), 15) for kw in custom_keywords]
+    else:
+        query = f'({category_query}) AND (ti:agent OR ti:multi-agent OR ti:LLM OR ti:reasoning OR ti:planning OR ti:tool OR ti:autonomous)'
+        scoring_patterns = KEYWORDS_WEIGHTED
 
     client = arxiv.Client()
     search = arxiv.Search(
@@ -59,7 +71,11 @@ def fetch_papers(max_results: int = 80, top_n: int = 10) -> list:
     for result in client.results(search):
         title = result.title
         summary = result.summary
-        score = calc_relevance(title, summary)
+        text = (title + ' ' + summary).lower()
+        score = 0
+        for pattern, weight in scoring_patterns:
+            matches = len(re.findall(pattern, text, re.IGNORECASE))
+            score += matches * weight
 
         if score == 0:
             continue
@@ -86,9 +102,10 @@ def fetch_papers(max_results: int = 80, top_n: int = 10) -> list:
 
     return top_papers
 
-def fetch_and_save(max_results: int = 80, top_n: int = 10) -> int:
+
+def fetch_and_save(max_results: int = 80, top_n: int = 10, custom_keywords: list = None) -> int:
     """Fetch papers and save them to the database. Returns number of new papers saved."""
-    papers = fetch_papers(max_results=max_results, top_n=top_n)
+    papers = fetch_papers(max_results=max_results, top_n=top_n, custom_keywords=custom_keywords)
     today = datetime.now().strftime('%Y-%m-%d')
 
     new_count = 0

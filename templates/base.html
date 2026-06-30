@@ -9,37 +9,165 @@
 <body>
     <nav class="navbar">
         <div class="container">
-            <a href="/" class="logo">📚 AI Paper Assistant</a>
+            <a href="/" class="logo">
+                <span class="logo-icon">📚</span>
+                <span class="logo-text">AI Paper Assistant</span>
+            </a>
             <div class="nav-links">
-                <button id="fetch-btn" class="btn btn-sm">🔄 立即抓取</button>
+                <button id="fetch-btn" class="btn btn-fetch">
+                    <span class="btn-icon-wrapper">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/>
+                            <path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/>
+                        </svg>
+                    </span>
+                    <span class="btn-text">抓取论文</span>
+                </button>
             </div>
         </div>
     </nav>
+
+    <!-- Keyword Search Modal -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal" id="fetch-modal">
+            <div class="modal-header">
+                <h2>🔍 关键词搜索</h2>
+                <button class="modal-close" id="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-desc">输入关键词搜索 arXiv 论文，多个关键词用逗号分隔。留空则使用默认推荐。</p>
+                <div class="search-input-wrapper">
+                    <input type="text" id="keyword-input" class="search-input"
+                           placeholder="例如: multi-agent, LLM, reasoning, planning"
+                           autocomplete="off">
+                    <div class="input-focus-ring"></div>
+                </div>
+                <div class="keyword-tags" id="keyword-tags">
+                    <span class="quick-tag" data-kw="multi-agent">multi-agent</span>
+                    <span class="quick-tag" data-kw="LLM">LLM</span>
+                    <span class="quick-tag" data-kw="reasoning">reasoning</span>
+                    <span class="quick-tag" data-kw="planning">planning</span>
+                    <span class="quick-tag" data-kw="tool use">tool use</span>
+                    <span class="quick-tag" data-kw="RAG">RAG</span>
+                    <span class="quick-tag" data-kw="code generation">code generation</span>
+                    <span class="quick-tag" data-kw="reinforcement learning">RL</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancel-btn">取消</button>
+                <button class="btn btn-primary" id="confirm-fetch">
+                    <span class="btn-loading" id="btn-loading">
+                        <span class="spinner"></span>
+                        抓取中...
+                    </span>
+                    <span class="btn-default">开始抓取</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+        <span class="toast-icon">✓</span>
+        <span class="toast-message" id="toast-message"></span>
+    </div>
 
     <main class="container">
         {% block content %}{% endblock %}
     </main>
 
     <script>
-        // Fetch now button
-        document.getElementById('fetch-btn')?.addEventListener('click', async () => {
-            const btn = document.getElementById('fetch-btn');
-            btn.disabled = true;
-            btn.textContent = '抓取中...';
+        // Modal controls
+        const modalOverlay = document.getElementById('modal-overlay');
+        const fetchModal = document.getElementById('fetch-modal');
+        const fetchBtn = document.getElementById('fetch-btn');
+        const modalClose = document.getElementById('modal-close');
+        const cancelBtn = document.getElementById('cancel-btn');
+        const confirmFetch = document.getElementById('confirm-fetch');
+        const keywordInput = document.getElementById('keyword-input');
+        const toast = document.getElementById('toast');
+        const toastMessage = document.getElementById('toast-message');
+        const btnLoading = document.getElementById('btn-loading');
+        const btnDefault = confirmFetch.querySelector('.btn-default');
+
+        // Quick tags
+        document.querySelectorAll('.quick-tag').forEach(tag => {
+            tag.addEventListener('click', () => {
+                const kw = tag.dataset.kw;
+                const current = keywordInput.value.trim();
+                if (current) {
+                    const existing = current.split(',').map(s => s.trim()).filter(Boolean);
+                    if (!existing.includes(kw)) {
+                        keywordInput.value = existing.concat(kw).join(', ');
+                    }
+                } else {
+                    keywordInput.value = kw;
+                }
+                keywordInput.focus();
+            });
+        });
+
+        function openModal() {
+            modalOverlay.classList.add('active');
+            fetchModal.classList.add('active');
+            keywordInput.value = '';
+            keywordInput.focus();
+        }
+
+        function closeModal() {
+            modalOverlay.classList.remove('active');
+            fetchModal.classList.remove('active');
+        }
+
+        function showToast(message, isError = false) {
+            toastMessage.textContent = message;
+            toast.classList.toggle('error', isError);
+            toast.classList.add('active');
+            setTimeout(() => toast.classList.remove('active'), 3500);
+        }
+
+        fetchBtn.addEventListener('click', openModal);
+        modalClose.addEventListener('click', closeModal);
+        cancelBtn.addEventListener('click', closeModal);
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) closeModal();
+        });
+
+        // Enter key to submit
+        keywordInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') confirmFetch.click();
+        });
+
+        // Fetch with keywords
+        confirmFetch.addEventListener('click', async () => {
+            const keywords = keywordInput.value.trim();
+
+            // Show loading state
+            confirmFetch.disabled = true;
+            btnLoading.style.display = 'flex';
+            btnDefault.style.display = 'none';
+
             try {
-                const resp = await fetch('/api/fetch-now', { method: 'POST' });
+                const body = keywords ? { keywords: keywords } : {};
+                const resp = await fetch('/api/fetch-now', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
                 const data = await resp.json();
                 if (data.success) {
-                    alert(data.message);
-                    location.reload();
+                    showToast(data.message);
+                    closeModal();
+                    setTimeout(() => location.reload(), 800);
                 } else {
-                    alert('抓取失败: ' + data.error);
+                    showToast('抓取失败: ' + data.error, true);
                 }
             } catch (e) {
-                alert('网络错误');
+                showToast('网络错误，请重试', true);
             } finally {
-                btn.disabled = false;
-                btn.textContent = '🔄 立即抓取';
+                confirmFetch.disabled = false;
+                btnLoading.style.display = 'none';
+                btnDefault.style.display = 'block';
             }
         });
 
@@ -62,6 +190,14 @@
             });
             location.reload();
         }
+
+        // Animate paper cards on load
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.paper-card').forEach((card, i) => {
+                card.style.animationDelay = `${i * 0.08}s`;
+                card.classList.add('animate-in');
+            });
+        });
     </script>
     {% block scripts %}{% endblock %}
 </body>
