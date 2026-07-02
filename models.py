@@ -75,6 +75,13 @@ def init_db():
                 FOREIGN KEY (repo_id) REFERENCES opensource_projects(repo_id)
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS view_history (
+                arxiv_id TEXT PRIMARY KEY,
+                viewed_at TEXT NOT NULL,
+                FOREIGN KEY (arxiv_id) REFERENCES papers(arxiv_id)
+            )
+        """)
 
 def save_paper(paper: dict, fetched_date: str):
     with get_db() as conn:
@@ -274,3 +281,26 @@ def update_opensource_status(repo_id: str, is_read: bool = None, is_favorite: bo
                 INSERT INTO opensource_status (repo_id, is_read, is_favorite, updated_at)
                 VALUES (?, ?, ?, ?)
             """, (repo_id, 1 if is_read else 0, 1 if is_favorite else 0, now))
+
+
+def record_view(arxiv_id: str):
+    with get_db() as conn:
+        now = datetime.now().isoformat()
+        conn.execute("""
+            INSERT INTO view_history (arxiv_id, viewed_at) VALUES (?, ?)
+            ON CONFLICT(arxiv_id) DO UPDATE SET viewed_at = excluded.viewed_at
+        """, (arxiv_id, now))
+
+
+def get_view_history():
+    with get_db() as conn:
+        rows = conn.execute("""
+            SELECT p.*, vh.viewed_at,
+                   COALESCE(ps.is_read, 0) as is_read,
+                   COALESCE(ps.is_favorite, 0) as is_favorite
+            FROM view_history vh
+            JOIN papers p ON vh.arxiv_id = p.arxiv_id
+            LEFT JOIN paper_status ps ON p.arxiv_id = ps.arxiv_id
+            ORDER BY vh.viewed_at DESC
+        """).fetchall()
+        return [dict(row) for row in rows]

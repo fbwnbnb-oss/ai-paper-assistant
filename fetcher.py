@@ -95,15 +95,18 @@ def fetch_papers(max_results: int = 80, top_n: int = 10, custom_keywords: list =
     return top_papers
 
 
-def fetch_and_save(max_results: int = 80, top_n: int = 10, custom_keywords: list = None) -> int:
-    """Fetch papers and save them to the database. Returns number of new papers saved."""
+def fetch_and_save(max_results: int = 80, top_n: int = 10, custom_keywords: list = None) -> dict:
+    """Fetch papers and save them to the database. Returns stats dict."""
     papers = fetch_papers(max_results=max_results, top_n=top_n, custom_keywords=custom_keywords)
     today = datetime.now().strftime('%Y-%m-%d')
 
     new_count = 0
+    updated_count = 0
     for paper in papers:
         if not paper_exists(paper['arxiv_id']):
             new_count += 1
+        else:
+            updated_count += 1
         save_paper(paper, today)
 
-    return new_count
+    return {'total': len(papers), 'new': new_count, 'updated': updated_count}

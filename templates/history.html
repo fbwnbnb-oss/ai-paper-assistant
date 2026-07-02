@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}浏览记录 — AI Paper Assistant{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>浏览记录 <span class="count">{{ papers|length }} 篇论文</span></h1>
+</div>
+
+{% if papers %}
+<div class="paper-list">
+    {% for p in papers %}
+    <div class="paper-card {% if p.is_read %}read{% endif %}">
+        <div class="paper-header">
+            <h2><a href="/paper/{{ p.arxiv_id }}">{{ p.title }}</a></h2>
+            <div class="paper-actions">
+                <button class="action-btn {% if p.is_read %}active-read{% endif %}"
+                        onclick="toggleRead('{{ p.arxiv_id }}', {{ 'true' if p.is_read else 'false' }})"
+                        title="标记已读">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                </button>
+                <button class="action-btn {% if p.is_favorite %}active-fav{% endif %}"
+                        onclick="toggleFavorite('{{ p.arxiv_id }}', {{ 'true' if p.is_favorite else 'false' }})"
+                        title="收藏">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="{% if p.is_favorite %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="paper-meta">
+            <span class="authors">{{ p.authors }}</span>
+            <span>浏览于 {{ p.viewed_at[:16].replace('T', ' ') }}</span>
+        </div>
+
+        <div class="tags-row">
+            {% for cat in p.categories.split(', ')[:4] %}
+            <span class="cat-tag">{{ cat }}</span>
+            {% endfor %}
+            <span class="score-badge">相关度 {{ p.relevance_score }}</span>
+        </div>
+
+        {% if p.summary %}
+        <div class="paper-summary">{{ p.summary[:200] }}{% if p.summary|length > 200 %}…{% endif %}</div>
+        {% endif %}
+
+        <div class="paper-footer">
+            <a href="{{ p.pdf_url }}" target="_blank" rel="noopener" class="link-btn">PDF</a>
+            <a href="https://arxiv.org/abs/{{ p.arxiv_id }}" target="_blank" rel="noopener" class="link-btn">arXiv</a>
+            <a href="/paper/{{ p.arxiv_id }}" class="link-btn">详情</a>
+            <a href="/study/{{ p.arxiv_id }}" class="link-btn" style="background:rgba(125,61,209,0.08);color:var(--purple);border-color:rgba(125,61,209,0.14)">学习</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <span class="empty-icon">📚</span>
+    <p>暂无浏览记录</p>
+    <small>点击论文进入详情页即可自动记录</small>
+</div>
+{% endif %}
+{% endblock %}

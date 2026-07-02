@@ -3,7 +3,7 @@ from datetime import datetime, date
 from models import (init_db, get_papers_by_date, get_all_dates, update_paper_status,
                     get_study_record, save_study_record, get_study_history,
                     save_opensource_project, get_opensource_projects, update_opensource_status,
-                    get_opensource_dates)
+                    get_opensource_dates, record_view, get_view_history)
 from fetcher import fetch_and_save
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -16,8 +16,8 @@ scheduler = BackgroundScheduler()
 def scheduled_fetch():
     print(f"[{datetime.now()}] Scheduled fetch started...")
     try:
-        count = fetch_and_save()
-        print(f"[{datetime.now()}] Fetched {count} new papers")
+        result = fetch_and_save()
+        print(f"[{datetime.now()}] Found {result['total']} papers, {result['new']} new")
     except Exception as e:
         print(f"[{datetime.now()}] Fetch error: {e}")
 
@@ -58,6 +58,7 @@ def paper_detail(arxiv_id):
     if not paper:
         return "Paper not found", 404
 
+    record_view(arxiv_id)
     return render_template('paper.html', paper=dict(paper))
 
 
@@ -82,9 +83,10 @@ def fetch_now():
         keywords = data.get('keywords', None)
         if isinstance(keywords, str):
             keywords = [kw.strip() for kw in keywords.split(',') if kw.strip()]
-        count = fetch_and_save(custom_keywords=keywords if keywords else None)
-        kw_msg = f" (关键词: {', '.join(keywords)})" if keywords else ""
-        return jsonify({'success': True, 'message': f'抓取到 {count} 篇新论文{kw_msg}', 'count': count})
+        result = fetch_and_save(custom_keywords=keywords if keywords else None)
+        kw_msg = f"（关键词: {', '.join(keywords)}）" if keywords else ""
+        msg = f"找到 {result['total']} 篇论文，{result['new']} 篇新增{kw_msg}"
+        return jsonify({'success': True, 'message': msg, 'count': result['total']})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -229,13 +231,19 @@ def opensource_toggle_favorite():
     return jsonify({'success': True})
 
 
+@app.route('/history')
+def history_page():
+    papers = get_view_history()
+    return render_template('history.html', papers=papers)
+
+
 if __name__ == '__main__':
     today = date.today().strftime('%Y-%m-%d')
     if not get_papers_by_date(today):
         print("No papers for today, fetching...")
         try:
-            count = fetch_and_save()
-            print(f"Fetched {count} papers")
+            result = fetch_and_save()
+            print(f"Found {result['total']} papers, {result['new']} new")
         except Exception as e:
             print(f"Initial fetch failed: {e}")
 
