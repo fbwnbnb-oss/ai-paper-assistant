@@ -1299,3 +1299,97 @@ body {
 [data-theme="dark"] .bilingual-row:hover .bilingual-zh {
     background: rgba(191,90,242,0.05);
 }
+
+/* ============================================================
+   Opensource Button (Navbar)
+   ============================================================ */
+.btn-opensource {
+    background: linear-gradient(135deg, #34c759 0%, #00c7be 100%);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(52,199,89,0.28);
+}
+.btn-opensource:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(52,199,89,0.36);
+}
+
+/* ============================================================
+   Opensource Page
+   ============================================================ */
+.os-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.company-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--border);
+    border-radius: var(--r-md);
+    padding: 3px;
+}
+
+.company-tabs .tab {
+    padding: 7px 16px;
+    border-radius: var(--r-sm);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-2);
+    text-decoration: none;
+    transition: background 0.2s, color 0.2s, transform 0.18s var(--spring);
+}
+
+.company-tabs .tab:hover {
+    color: var(--text);
+}
+
+.company-tabs .tab.active {
+    background: var(--bg-card);
+    color: var(--text);
+    box-shadow: var(--shadow-sm);
+}
+
+.os-company-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 8px;
+    vertical-align: middle;
+    letter-spacing: 0.02em;
+}
+
+.os-openai {
+    background: rgba(0,0,0,0.06);
+    color: #1a1a1a;
+}
+[data-theme="dark"] .os-openai {
+    background: rgba(255,255,255,0.1);
+    color: #f5f5f7;
+}
+
+.os-google {
+    background: rgba(66,133,244,0.1);
+    color: #4285f4;
+}
+[data-theme="dark"] .os-google {
+    background: rgba(66,133,244,0.15);
+    color: #8ab4f8;
+}
+
+.os-anthropic {
+    background: rgba(204,120,64,0.1);
+    color: #cc7840;
+}
+[data-theme="dark"] .os-anthropic {
+    background: rgba(204,120,64,0.15);
+    color: #e8a06c;
+}
+
+@media (max-width: 640px) {
+    .os-controls { flex-direction: column; align-items: flex-start; }
+    .company-tabs { flex-wrap: wrap; }
+}

@@ -50,6 +50,31 @@ def init_db():
                 FOREIGN KEY (arxiv_id) REFERENCES papers(arxiv_id)
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS opensource_projects (
+                repo_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                company TEXT NOT NULL,
+                org TEXT NOT NULL,
+                description TEXT,
+                url TEXT NOT NULL,
+                stars INTEGER DEFAULT 0,
+                language TEXT,
+                topics TEXT,
+                created_at TEXT,
+                updated_at TEXT,
+                fetched_date TEXT NOT NULL
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS opensource_status (
+                repo_id TEXT PRIMARY KEY,
+                is_read INTEGER DEFAULT 0,
+                is_favorite INTEGER DEFAULT 0,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (repo_id) REFERENCES opensource_projects(repo_id)
+            )
+        """)
 
 def save_paper(paper: dict, fetched_date: str):
     with get_db() as conn:
@@ -179,3 +204,73 @@ def get_study_history():
             ORDER BY sr.studied_at DESC
         """).fetchall()
         return [dict(row) for row in rows]
+
+
+def save_opensource_project(project: dict, fetched_date: str):
+    with get_db() as conn:
+        conn.execute("""
+            INSERT OR REPLACE INTO opensource_projects
+            (repo_id, name, company, org, description, url, stars, language, topics, created_at, updated_at, fetched_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            project['repo_id'], project['name'], project['company'], project['org'],
+            project['description'], project['url'], project['stars'], project['language'],
+            project['topics'], project['created_at'], project['updated_at'], fetched_date
+        ))
+
+
+def get_opensource_projects(company=None, target_date=None):
+    with get_db() as conn:
+        conditions = []
+        params = []
+        if company and company != 'all':
+            conditions.append("op.company = ?")
+            params.append(company)
+        if target_date:
+            conditions.append("op.fetched_date = ?")
+            params.append(target_date)
+
+        where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        rows = conn.execute(f"""
+            SELECT op.*, COALESCE(os.is_read, 0) as is_read, COALESCE(os.is_favorite, 0) as is_favorite
+            FROM opensource_projects op
+            LEFT JOIN opensource_status os ON op.repo_id = os.repo_id
+            {where}
+            ORDER BY op.stars DESC
+        """, params).fetchall()
+        return [dict(row) for row in rows]
+
+
+def get_opensource_dates():
+    with get_db() as conn:
+        dates = conn.execute("""
+            SELECT DISTINCT fetched_date FROM opensource_projects ORDER BY fetched_date DESC
+        """).fetchall()
+        return [row['fetched_date'] for row in dates]
+
+
+def update_opensource_status(repo_id: str, is_read: bool = None, is_favorite: bool = None):
+    with get_db() as conn:
+        now = datetime.now().isoformat()
+        existing = conn.execute(
+            "SELECT * FROM opensource_status WHERE repo_id = ?", (repo_id,)
+        ).fetchone()
+
+        if existing:
+            updates, params = [], []
+            if is_read is not None:
+                updates.append("is_read = ?")
+                params.append(1 if is_read else 0)
+            if is_favorite is not None:
+                updates.append("is_favorite = ?")
+                params.append(1 if is_favorite else 0)
+            if updates:
+                updates.append("updated_at = ?")
+                params.append(now)
+                params.append(repo_id)
+                conn.execute(f"UPDATE opensource_status SET {', '.join(updates)} WHERE repo_id = ?", params)
+        else:
+            conn.execute("""
+                INSERT INTO opensource_status (repo_id, is_read, is_favorite, updated_at)
+                VALUES (?, ?, ?, ?)
+            """, (repo_id, 1 if is_read else 0, 1 if is_favorite else 0, now))

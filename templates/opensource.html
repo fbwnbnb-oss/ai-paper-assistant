@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}开源追踪 — AI Paper Assistant{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>开源追踪 <span class="count">{{ projects|length }} 个项目</span></h1>
+    <div class="os-controls">
+        <div class="company-tabs">
+            <a href="/opensource?company=all{% if current_date %}&date={{ current_date }}{% endif %}" class="tab {% if current_company == 'all' %}active{% endif %}">全部</a>
+            <a href="/opensource?company=OpenAI{% if current_date %}&date={{ current_date }}{% endif %}" class="tab {% if current_company == 'OpenAI' %}active{% endif %}">OpenAI</a>
+            <a href="/opensource?company=Google{% if current_date %}&date={{ current_date }}{% endif %}" class="tab {% if current_company == 'Google' %}active{% endif %}">Google</a>
+            <a href="/opensource?company=Anthropic{% if current_date %}&date={{ current_date }}{% endif %}" class="tab {% if current_company == 'Anthropic' %}active{% endif %}">Anthropic</a>
+        </div>
+        {% if all_dates %}
+        <div class="date-picker">
+            <label>日期</label>
+            <select onchange="window.location.href='/opensource?company={{ current_company }}&date='+this.value">
+                {% for d in all_dates %}
+                <option value="{{ d }}" {% if d == current_date %}selected{% endif %}>{{ d }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <button class="btn btn-green" id="os-fetch-btn" style="gap:7px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"/>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            <span id="os-fetch-label">抓取最新</span>
+            <span id="os-fetch-loading" style="display:none"><span class="spinner"></span></span>
+        </button>
+    </div>
+</div>
+
+{% if projects %}
+<div class="paper-list">
+    {% for p in projects %}
+    <div class="paper-card {% if p.is_read %}read{% endif %}" data-repo="{{ p.repo_id }}">
+        <div class="paper-header">
+            <h2>
+                <a href="{{ p.url }}" target="_blank" rel="noopener">{{ p.name }}</a>
+                <span class="os-company-badge os-{{ p.company|lower }}">{{ p.company }}</span>
+            </h2>
+            <div class="paper-actions">
+                <button class="action-btn {% if p.is_read %}active-read{% endif %}"
+                        onclick="osToggleRead('{{ p.repo_id }}', {{ 'true' if p.is_read else 'false' }})"
+                        title="标记已读">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                </button>
+                <button class="action-btn {% if p.is_favorite %}active-fav{% endif %}"
+                        onclick="osToggleFav('{{ p.repo_id }}', {{ 'true' if p.is_favorite else 'false' }})"
+                        title="收藏">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="{% if p.is_favorite %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="paper-meta">
+            <span class="authors">{{ p.org }}</span>
+            <span>⭐ {{ p.stars }}</span>
+            {% if p.language %}<span>{{ p.language }}</span>{% endif %}
+            <span>更新于 {{ p.updated_at }}</span>
+        </div>
+
+        {% if p.topics %}
+        <div class="tags-row">
+            {% for topic in p.topics.split(', ')[:6] %}
+            {% if topic %}
+            <span class="cat-tag">{{ topic }}</span>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if p.description %}
+        <div class="paper-summary">{{ p.description }}</div>
+        {% endif %}
+
+        <div class="paper-footer">
+            <a href="{{ p.url }}" target="_blank" rel="noopener" class="link-btn">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+                </svg>
+                GitHub
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <span class="empty-icon">🔬</span>
+    <p>暂无开源项目数据</p>
+    <small>点击「抓取最新」获取 OpenAI / Google / Anthropic 的最新开源成果</small>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function osToggleRead(repoId, current) {
+    await fetch('/api/opensource/mark-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repo_id: repoId, is_read: !current })
+    });
+    location.reload();
+}
+
+async function osToggleFav(repoId, current) {
+    await fetch('/api/opensource/toggle-favorite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repo_id: repoId, is_favorite: !current })
+    });
+    location.reload();
+}
+
+document.getElementById('os-fetch-btn').addEventListener('click', async function() {
+    const btn = this;
+    const label = document.getElementById('os-fetch-label');
+    const loading = document.getElementById('os-fetch-loading');
+    btn.disabled = true;
+    label.style.display = 'none';
+    loading.style.display = 'flex';
+
+    try {
+        const resp = await fetch('/api/opensource/fetch', { method: 'POST' });
+        const data = await resp.json();
+        if (data.success) {
+            showToast(data.message);
+            setTimeout(() => { window.location.href = '/opensource'; }, 700);
+        } else {
+            showToast('抓取失败: ' + data.error, { isError: true });
+        }
+    } catch {
+        showToast('网络错误', { isError: true });
+    } finally {
+        btn.disabled = false;
+        label.style.display = 'inline';
+        loading.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

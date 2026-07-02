@@ -1,7 +1,9 @@
 from flask import Flask, render_template, jsonify, request
 from datetime import datetime, date
 from models import (init_db, get_papers_by_date, get_all_dates, update_paper_status,
-                    get_study_record, save_study_record, get_study_history)
+                    get_study_record, save_study_record, get_study_history,
+                    save_opensource_project, get_opensource_projects, update_opensource_status,
+                    get_opensource_dates)
 from fetcher import fetch_and_save
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -186,6 +188,45 @@ def study_recommend():
         return jsonify({'success': True, 'keywords': []})
     keywords = recommend_keywords(history)
     return jsonify({'success': True, 'keywords': keywords})
+
+
+@app.route('/opensource')
+def opensource_page():
+    company = request.args.get('company', 'all')
+    all_dates = get_opensource_dates()
+    target_date = request.args.get('date', all_dates[0] if all_dates else None)
+    projects = get_opensource_projects(company, target_date) if target_date else []
+    return render_template('opensource.html', projects=projects, current_company=company,
+                           current_date=target_date, all_dates=all_dates)
+
+
+@app.route('/api/opensource/fetch', methods=['POST'])
+def fetch_opensource():
+    from opensource_fetcher import fetch_all_opensource
+    try:
+        repos = fetch_all_opensource()
+        today = date.today().strftime('%Y-%m-%d')
+        count = 0
+        for repo in repos:
+            save_opensource_project(repo, today)
+            count += 1
+        return jsonify({'success': True, 'message': f'抓取到 {count} 个开源项目', 'count': count})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/opensource/mark-read', methods=['POST'])
+def opensource_mark_read():
+    data = request.get_json()
+    update_opensource_status(data.get('repo_id'), is_read=data.get('is_read', True))
+    return jsonify({'success': True})
+
+
+@app.route('/api/opensource/toggle-favorite', methods=['POST'])
+def opensource_toggle_favorite():
+    data = request.get_json()
+    update_opensource_status(data.get('repo_id'), is_favorite=data.get('is_favorite', True))
+    return jsonify({'success': True})
 
 
 if __name__ == '__main__':
